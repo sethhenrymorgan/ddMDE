@@ -1,4 +1,4 @@
-# Power Calculations by Simulation
+# Minimum Detectable Effect Calculation by Simulation & Optimization
 
 # see here: https://egap.org/resource/script-power-analysis-simulations-in-r/
 # and here for Stata version: https://github.com/sethhenrymorgan/ddpower/blob/main/ddpowersimu.ado
@@ -10,33 +10,34 @@
 # and source of some cluster code: https://stats.stackexchange.com/questions/263451/create-synthetic-data-with-a-given-intraclass-correlation-coefficient-icc
 # estimating linear models with clustered standard errors (lm_robust): https://www.r-bloggers.com/2021/05/clustered-standard-errors-with-r/
 # optimization: https://search.r-project.org/R/refmans/stats/html/optimize.html
+# another nice power by simulation in R tutorial: https://cameronraymond.me/blog/power-simulations-in-r/
 
 library(dplyr)
 library(tictoc)
 library(estimatr)
 library(stats)
 
-# Sample Parameters (Should stay the same for all variables)
-N <- 5554 # set sample size
-C <- 375 # number of clusters
-n_per_c <- N/C
-treatprob <- 0.435722 # fraction of sample in treatment
-afterprob <- 0.76755492 # fraction of sample post-treatment time
-treatprob_byc <- 0.104 # fraction of clusters in treatment
-afterprob_byc <- 0.74770642 # fraction of clusters in post-treatment time
-
-# Variable Parameters (Currently Asset Score)
-mu <- 0 # set outcome mean
-ICC <- 0.18598 # intra-cluster correlation
-sd_alpha <- .6004938 # variation between clusters
-sd_epsilon <- 1.256295 # variation within clusters
-interval <- c(0.8,0.9)   # a reasonable interval over which to search for the MDE
-  
 # Simulation Parameters
 alpha <- 0.05 # standard significance level
 sims <- seq(1,100, by=1) # number of simulations
 power_target <- 0.8 # targeted statistical power (probably stay at 0.8)
 
+# Sample Parameters (set for theory sample, contraception dataset)
+N <- 3313 # set sample size
+C <- 130 # number of clusters
+n_per_c <- N/C
+#treatprob <- .48864307 # fraction of sample in treatment
+#afterprob <- 0.76755492 # fraction of sample post-treatment time
+treatprob_byc <- 0.3 # fraction of clusters in treatment
+afterprob_byc <- .82758621 # fraction of clusters in post-treatment time (2016+2022?)
+
+# Variable Parameters (Currently Modern Contraception Use)
+mu <- .2659221  # set outcome mean
+#ICC <- 0.18598 # intra-cluster correlation (turns out don't need this if we have the below parameters)
+sd_alpha <- .1238547 # variation between clusters
+sd_epsilon <- .4244322 # variation within clusters
+interval <- c(0.1,0.5)   # a reasonable interval over which to search for the MDE
+  
 # function to generate clustered data
 gen_data_c <- function(c, C, N){
   n_per_c <- N/C
@@ -67,7 +68,7 @@ gen_sig <- function(c, C, N, tau){
 power_diff <- function(tau, sims, N, C) {
   significant.experiments <- lapply(X = sims, FUN = gen_sig, N=N, C=C, tau=tau)
   power <- mean(as.integer(significant.experiments))
-  diff = abs(power - power_target)
+  diff = (power - power_target)^2
 }
 
 # Use optimize to get MDE
